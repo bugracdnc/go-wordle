@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand/v2"
+	"strings"
 )
 
 type Color struct {
@@ -32,6 +33,15 @@ func initColor() *Color {
 	return &color
 }
 
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
 var wordleDict = []string{"BUGRA", "NESLI"}
 
 func main() {
@@ -46,6 +56,7 @@ func main() {
 
 	isGuessed := false
 	for i := 0; i < tries; i++ {
+		var checked []string
 		for len(userInput) != 5 {
 			fmt.Printf("%d tries left\n", (tries - i))
 			fmt.Printf("Enter a %sguess: ", errString)
@@ -57,11 +68,17 @@ func main() {
 		isCorrect := true
 
 		for index, _ := range randSelected {
-			if randSelected[index] == userInput[index] {
+			inputChar := string(userInput[index])
+			srcChar := string(randSelected[index])
+			if inputChar == srcChar {
 				fmt.Print(color.Green + string(randSelected[index]) + color.Reset)
+			} else if !contains(checked, inputChar) && strings.Contains(randSelected, inputChar) {
+				isCorrect = false
+				checked = append(checked, inputChar)
+				fmt.Print(color.Yellow + inputChar + color.Reset)
 			} else {
 				isCorrect = false
-				fmt.Print("_")
+				fmt.Print(inputChar)
 			}
 			fmt.Print(" ")
 		}
