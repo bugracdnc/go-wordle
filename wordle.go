@@ -6,94 +6,118 @@ import (
 	"strings"
 )
 
-type Color struct {
-	Reset   string
-	Red     string
-	Green   string
-	Yellow  string
-	Blue    string
-	Magenta string
-	Cyan    string
-	Gray    string
-	White   string
+const totalTries int = 6
+const wordLen int = 5
+
+type Wordle struct {
+	index    int
+	dict     WordleDict
+	word     string
+	tries    int
+	solved   [wordLen]byte
+	attempts [totalTries]string
 }
 
-func initColor() *Color {
-	var color Color
-	color.Reset = "\033[0m"
-	color.Red = "\033[31m"
-	color.Green = "\033[32m"
-	color.Yellow = "\033[33m"
-	color.Blue = "\033[34m"
-	color.Magenta = "\033[35m"
-	color.Cyan = "\033[36m"
-	color.Gray = "\033[37m"
-	color.White = "\033[97m"
-
-	return &color
+func initWordle() *Wordle {
+	var w Wordle
+	w.dict = *initWordleDict()
+	w.index = rand.IntN(len(w.dict.elems))
+	w.word = w.dict.elems[w.index]
+	w.tries = totalTries
+	w.solved = [wordLen]byte{0}
+	return &w
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
+func parseUserInput(wordle *Wordle, userInput string) bool {
+	var builder strings.Builder
+	color := initColor()
+	toFind := make(map[byte]int)
+	for _, c := range []byte(wordle.word) {
+		toFind[c]++
+	}
+	found := make(map[byte]int)
+	foundc := 0
+
+	//scan through the source string for input
+	for i := 0; i < wordLen; i++ {
+		inputChar := userInput[i]
+		srcChar := wordle.word[i]
+		if inputChar == srcChar {
+			foundc++
+			wordle.solved[i] = srcChar
+			toFind[srcChar]--
+		}
+	}
+
+	//scan again for correct values in wrong places
+	if foundc < wordLen {
+		for i := 0; i < wordLen; i++ {
+			if wordle.solved[i] == 0 {
+				inputChar := userInput[i]
+				if count(wordle.word, inputChar) > 0 && toFind[inputChar] > 0 {
+					found[inputChar]++
+					toFind[inputChar]--
+				}
+			}
+		}
+	}
+
+	//build result for user
+	for i := 0; i < wordLen; i++ {
+		if userInput[i] == wordle.solved[i] {
+			builder.WriteString(color.Green + string(wordle.solved[i]) + color.Reset)
+		} else if found[userInput[i]] > 0 {
+			builder.WriteString(color.Yellow + string(userInput[i]) + color.Reset)
+			found[userInput[i]]--
+		} else {
+			builder.WriteByte(userInput[i])
+		}
+		builder.WriteString(" ")
+	}
+
+	wordle.attempts[totalTries-wordle.tries] = builder.String()
+
+	for i := 0; i < totalTries-wordle.tries+1; i++ {
+		fmt.Println(wordle.attempts[i])
+	}
+	fmt.Println()
+	return foundc == wordLen
+}
+
+func getUserInput(tries int) string {
+	userInput := ""
+	errString := ""
+	for len(userInput) != wordLen {
+		fmt.Printf("%d tries left\n", tries)
+		fmt.Printf("Enter a %sguess: ", errString)
+		fmt.Scanln(&userInput)
+		errString = fmt.Sprintf("%d length ", wordLen)
+	}
+	fmt.Println()
+	return userInput
+}
+
+func game(wordle *Wordle) bool {
+	for ; wordle.tries > 0; wordle.tries-- {
+		if parseUserInput(wordle, getUserInput(wordle.tries)) {
 			return true
 		}
 	}
 	return false
 }
 
-var wordleDict = []string{"BUGRA", "NESLI"}
-
 func main() {
-	color := initColor()
-	randSelected := wordleDict[rand.IntN(len(wordleDict))]
+	wordle := initWordle()
+	fmt.Println()
+	fmt.Println("### WORDLE ###")
+	fmt.Println()
+	fmt.Println("_ _ _ _ _")
+	fmt.Println()
 
-	var userInput string
-	errString := ""
-	var tries = 6
-
-	fmt.Println("_ _ _ _ _\n")
-
-	isGuessed := false
-	for i := 0; i < tries; i++ {
-		var checked []string
-		for len(userInput) != 5 {
-			fmt.Printf("%d tries left\n", (tries - i))
-			fmt.Printf("Enter a %sguess: ", errString)
-			fmt.Scanln(&userInput)
-			errString = "five length "
-		}
-
-		fmt.Println()
-		isCorrect := true
-
-		for index, _ := range randSelected {
-			inputChar := string(userInput[index])
-			srcChar := string(randSelected[index])
-			if inputChar == srcChar {
-				fmt.Print(color.Green + string(randSelected[index]) + color.Reset)
-			} else if !contains(checked, inputChar) && strings.Contains(randSelected, inputChar) {
-				isCorrect = false
-				checked = append(checked, inputChar)
-				fmt.Print(color.Yellow + inputChar + color.Reset)
-			} else {
-				isCorrect = false
-				fmt.Print(inputChar)
-			}
-			fmt.Print(" ")
-		}
-		fmt.Println("\n")
-		if isCorrect {
-			isGuessed = true
-			break
-		} else {
-			userInput = ""
-			errString = ""
-		}
-	}
-	if isGuessed {
-		fmt.Println("Congratulations!\nYou win!\n\n")
+	if game(wordle) {
+		fmt.Printf("Wordle #%d %d/%d\n\n", wordle.index+1, wordle.tries, totalTries)
+		fmt.Println("Congratulations! You win!")
 	} else {
-		fmt.Println("Sorry, you run out of tries.\n\n")
+		fmt.Println("Sorry, you run out of tries.")
 	}
 }
