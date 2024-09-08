@@ -90,7 +90,10 @@ func getUserInput(tries int) string {
 	for len(userInput) != wordLen {
 		fmt.Printf("%d tries left\n", tries)
 		fmt.Printf("Enter a %sguess: ", errString)
-		fmt.Scanln(&userInput)
+		_, err := fmt.Scanln(&userInput)
+		if err != nil {
+			return ""
+		}
 		errString = fmt.Sprintf("%d length ", wordLen)
 	}
 	fmt.Println()
